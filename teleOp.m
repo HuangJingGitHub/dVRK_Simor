@@ -4,17 +4,25 @@ classdef teleOp < handle
     jointStateMsg;
     tStart = tic;
     dt = 0.001;
+    
     T_psm_mtm = [ -1        0         0   -0.0001;
                    0        -1        0   -0.3639;
                    0         0        1   -0.0359;
                    0         0        0    1 ];
+%     T_psm_mtm = [ 0.0003    0.9994    0.0356    0.3687;
+%                  -0.0011   -0.0356    0.9994    0.1283;
+%                   1.0000   -0.0003    0.0011   -0.1771;
+%                        0         0         0    1.0000 ];
     psm_q;
     psm_x_cur;
     psm_x_dsr_pre;
     psm_x_dsr;
     mtm_x;
-    
     lambda = diag([500 500 500 200 200 200]);
+    
+    counter;
+    origin_pos;
+    fig;
     %define your variables
 
   end
@@ -25,10 +33,13 @@ classdef teleOp < handle
             obj.psm_q = psm_q_initial;
             mtm = dVRK_MTMmodel(mtm_q_initial);
             psm = dVRK_PSMmodel(psm_q_initial);
-            obj.mtm_x  = MTM_FK(mtm);
-            obj.psm_x_cur = PSM_FK(psm);
+            obj.mtm_x = MTM_FK(mtm);
+            [obj.psm_x_cur, obj.origin_pos, ~] = PSM_FK(psm);
             obj.psm_x_dsr = obj.T_psm_mtm * obj.mtm_x;
-            obj.psm_x_dsr_pre = obj.T_psm_mtm * obj.mtm_x;
+            obj.psm_x_dsr_pre = obj.psm_x_dsr;  %obj.T_psm_mtm * obj.mtm_x;
+            
+            obj.counter = 1;
+            obj.fig = init_fig(obj.psm_x_cur, obj.origin_pos);
             %initialize your variables
 
             if (nargin > 3)
@@ -40,7 +51,7 @@ classdef teleOp < handle
         function  [psm_q,tracking_err] = run(obj, mtm_q)
             mtm = dVRK_MTMmodel(mtm_q);
             psm = dVRK_PSMmodel(obj.psm_q);
-            [obj.psm_x_cur, J] = PSM_FK(psm);
+            [obj.psm_x_cur, obj.origin_pos, J] = PSM_FK(psm);
             obj.mtm_x = MTM_FK(mtm);
             obj.psm_x_dsr = obj.T_psm_mtm * obj.mtm_x;
             psm_xdot_dsr = PSM_Vel_Cal(obj.psm_x_dsr, obj.psm_x_dsr_pre);
@@ -50,7 +61,13 @@ classdef teleOp < handle
             obj.psm_q = obj.psm_q + qdot_psm * obj.dt;
             psm_q = obj.psm_q;
             obj.psm_x_dsr_pre = obj.psm_x_dsr;
-                    
+            
+            obj.counter = obj.counter + 1;
+            if ~mod(obj.counter, 20)
+                init_fig_run(obj.fig, obj.psm_x_cur, obj.origin_pos);
+                obj.counter = 0;
+            end
+                
             %transform mtm_q to psm desired Cartesian position and psm desired Cartesian velocity
             %and then call inverse kinematics function
 
