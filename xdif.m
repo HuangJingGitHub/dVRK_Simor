@@ -20,11 +20,11 @@ function xerr = xdif(T_dsr, T_act)
     %%% to avoid this potential problem. ***
     %%% *** Actually, if just for control porpose, theta can be ignored.
     %%% Returning K above as the orientation error is sufficient of
-    %%% controller. And this may be inportant if high computatio speed is 
+    %%% controller. And this may be inportant if high computation speed is 
     %%% needed, that's why there is a lite version of this function. ***
     
     theta = acos((trace(Re) - 1) / 2);          % Built-in acos() returns angle in [0, pi].
-    epsilon = 1e-5;                             % Cannot be set too small.
+    epsilon = 1e-5;                             % epsilon cannot be set too small.
     if theta > epsilon && theta < pi - epsilon          
         K = theta * K / (2*sin(theta));                 
     else
