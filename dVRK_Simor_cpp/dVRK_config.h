@@ -7,13 +7,30 @@ const float l_forearm1 = 0.3048F;
 const float l_forearm2 = 0.0597F;
 const float l_forearm = l_forearm1 + l_forearm2;
 const float h = 0.1506F;
-#define MTM_frame_num 7
-#define PSM_frame_num 7
+const int MTM_frame_num = 7;
+const int PSM_frame_num = 7;
 // PSM parameters
 const float l_RCC = 0.4318F;
 const float l_tool = 0.4152F;
 const float l_Pitch2Yaw = 0.0091F;
 const float l_Yaw2CtrlPnt = 0.0102F;
+
+Matrix4f get_T_psm_mtm()
+{
+	Matrix4f T_psm_mtm;
+	T_psm_mtm << -1.0F, 0.0F, 0.0F, -0.0001F,
+				0.0F, -1.0F, 0.0F, -0.3639F,
+				0.0F, 0.0F, 1.0F, -0.0359F,
+				0.0F, 0.0F, 0.0F, 1.0F;
+	return T_psm_mtm;
+}        
+
+DiagonalMatrix<float, 6> get_gain()
+{
+	DiagonalMatrix<float, 6> lambda;
+	lambda.diagonal() << 800.0F, 800.0F, 800.0F, 200.0F, 200.0F, 200.0F;
+	return lambda;
+}
 
 MatrixXf dVRK_MTMinit()
 {
@@ -32,7 +49,7 @@ MatrixXf dVRK_MTMinit()
 
 MatrixXf dVRK_PSMinit()
 {
-	MatrixXf PSM_DH(7,5);
+	MatrixXf PSM_DH(7, 5);
 	PSM_DH.row(0) << 1, pi / 2, 0, 0, pi / 2;
 	PSM_DH.row(1) << 1, -pi / 2, 0, 0, -pi / 2;
 	PSM_DH.row(2) << 2, pi / 2, 0 - l_RCC, 0;
@@ -164,4 +181,74 @@ Kinematics_info PSM_FK(DH PSM)
 	psm_fwadk_info.J_set(J);
 
 	return psm_fwadk_info;
+}
+
+
+class control_info
+{
+public:
+	control_info() 
+	{
+		_psm_q_dsr = MatrixXf::Zero(6, 1);
+		_tracking_err = MatrixXf::Zero(6, 1);
+	}
+
+	void control_info_update(MatrixXf psm_q_dsr, MatrixXf tracking_err)
+	{
+		_psm_q_dsr = psm_q_dsr;
+		_tracking_err = tracking_err;
+	}
+private:
+	MatrixXf _psm_q_dsr;
+	MatrixXf _tracking_err;
+};
+
+class teleOp 
+{
+public:
+	teleOp(MatrixXf mtm_q_initial, MatrixXf psm_q_initial);
+	control_info run(MatrixXf mtm_q);
+private:
+	const float dt = 0.001F;
+	const Matrix4f T_psm_mtm = get_T_psm_mtm();
+	const MatrixXf lambda = get_gain();
+	MatrixXf psm_q;
+	Matrix4f psm_x_cur;
+	Matrix4f psm_x_dsr_pre;
+	Matrix4f psm_x_dsr_cur;
+	Matrix4f mtm_x;
+};
+
+teleOp::teleOp(MatrixXf mtm_q_initial, MatrixXf psm_q_initial)
+{
+	psm_q = psm_q_initial;
+	DH MTM(mtm_q_initial);
+	DH PSM(psm_q_initial);
+	mtm_x = MTM_FK(MTM);
+
+	Kinematics_info psm_kine_info = PSM_FK(PSM);
+	psm_x_cur = psm_kine_info.tip_get();
+	psm_x_dsr_cur = T_psm_mtm * mtm_x;
+	psm_x_dsr_pre = psm_x_cur;
+}
+
+control_info teleOp::run(MatrixXf mtm_q)
+{
+	DH MTM = DH(mtm_q);
+	DH PSM = DH(psm_q);
+	Kinematics_info psm_kine_info = PSM_FK(PSM);
+	psm_x_cur = psm_kine_info.tip_get();
+	MatrixXf J = psm_kine_info.J_get();
+	mtm_x = MTM_FK(MTM);
+	psm_x_dsr_cur = T_psm_mtm * mtm_x;
+
+	MatrixXf psm_xdot_dsr = vel_cal(psm_x_dsr_cur, psm_x_dsr_pre, dt),
+			tracking_err = xdif(psm_x_dsr_cur, psm_x_cur),
+			psm_qdot = right_pseudoinv(J) * (psm_xdot_dsr + lambda * tracking_err);
+	psm_q += psm_qdot * dt;
+	psm_x_dsr_pre = psm_x_dsr_cur;
+
+	control_info tele_cmd;
+	tele_cmd.control_info_update(psm_q, tracking_err);
+	return tele_cmd;
 }

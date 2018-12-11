@@ -24,6 +24,7 @@ int main()
 	float ang = 0.0F;
 	int idx = 0;
 
+	// *** Test on the forward kinematics of MTM. *** //
 	while (mtm_q_input >> ang)
 	{
 		mtm_q_cur.row(idx) << ang;
@@ -38,7 +39,14 @@ int main()
 		else
 		++idx;
 	}
+
+
 	//cout << mtm_q_cur << endl;
 	mtm_q_input.close();
-	mtm_x_out.close();                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+	mtm_x_out.close(); 
+
+	/*MatrixXf temp1(2, 3);
+	temp1 << 1, 1, 1, 3, 3, 3;
+	JacobiSVD<MatrixXf> svd_A(temp1, ComputeFullU | ComputeFullV);
+	cout << svd_A.singularValues() << endl;*/
 }

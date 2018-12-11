@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cmath>
 #include "Eigen\Dense"
 
 using namespace std;
@@ -117,3 +118,70 @@ private:
 	MatrixXf _origin_pos;
 	MatrixXf _Jacobian;
 };
+
+MatrixXf vel_cal(Matrix4f& T_cur, Matrix4f& T_pre, float dt)  // Pass fixed size matrix in eigen, use reference.
+{
+	MatrixXf vel = MatrixXf::Zero(6, 1);
+	Matrix3f R_cur = T_cur.block(0, 0, 3, 3),
+			 R_pre = T_pre.block(0, 0, 3, 3);
+	Matrix3f T = R_cur * R_pre.transpose();
+	vel(3, 0) = T(2, 1) - T(1, 2);
+	vel(4, 0) = T(0, 2) - T(2, 0);
+	vel(5, 0) = T(1, 0) - T(0, 1);
+
+	double epsilon = 1e-5,
+		  theta = acos(0.5*(T.trace() - 1));
+	if (theta > epsilon && theta < pi - epsilon)
+		vel = vel * (theta / 2 / sin(theta));
+	else
+		vel = vel * (theta / 2 / sin(epsilon));
+	
+	vel(0, 0) = T_cur(0, 3) - T_pre(0, 3);
+	vel(0, 1) = T_cur(1, 3) - T_pre(1, 3);
+	vel(0, 2) = T_cur(2, 3) - T_pre(2, 3);
+	vel = vel / dt;
+	return vel;
+}
+
+MatrixXf xdif(Matrix4f& T_cur, Matrix4f& T_pre)
+{
+	MatrixXf xerr = MatrixXf::Zero(6, 1);
+	Matrix3f R_cur = T_cur.block(0, 0, 3, 3),
+			 R_pre = T_pre.block(0, 0, 3, 3);
+	Matrix3f T = R_cur * R_pre.transpose();
+	xerr(3, 0) = T(2, 1) - T(1, 2);
+	xerr(4, 0) = T(0, 2) - T(2, 0);
+	xerr(5, 0) = T(1, 0) - T(0, 1);
+
+	double epsilon = 1e-5,
+		theta = acos(0.5*(T.trace() - 1));
+	if (theta > epsilon && theta < pi - epsilon)
+		xerr = xerr * (theta / 2 / sin(theta));
+	else
+		xerr = xerr * (theta / 2 / sin(epsilon));
+
+	xerr(0, 0) = T_cur(0, 3) - T_pre(0, 3);
+	xerr(0, 1) = T_cur(1, 3) - T_pre(1, 3);
+	xerr(0, 2) = T_cur(2, 3) - T_pre(2, 3);
+	return xerr;
+}
+
+MatrixXf right_pseudoinv(MatrixXf A)
+{
+	MatrixXf rig_pesuinv;
+	int row_A = A.rows(),
+		col_A = A.cols(),
+		m = min(row_A, col_A);
+	JacobiSVD<MatrixXf> svd_A(A, ComputeFullU | ComputeFullV);
+	MatrixXf U = svd_A.matrixU(),
+			 V = svd_A.matrixV(),
+			 singval = svd_A.singularValues(),
+			 S = MatrixXf::Zero(row_A, col_A);
+
+	for (int i = 0; i < m; i++)
+		S(i, i) = singval(i, 0);
+
+	MatrixXf SS_T = S*(S.transpose());
+	rig_pesuinv = V * S.transpose() * SS_T.inverse() * U.transpose();
+	return rig_pesuinv;
+}
