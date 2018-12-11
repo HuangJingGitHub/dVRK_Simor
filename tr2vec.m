@@ -7,15 +7,18 @@ K = [ R(3, 2) - R(2, 3);
       R(1, 3) - R(3, 1);
       R(2, 1) - R(1, 2) ];
 
-epsilon = 0.0001;
+epsilon = 1e-6;
 if theta > epsilon && theta < pi - epsilon     
     K = theta * K / (2*sin(theta));
 else
-    K = theta * K / 1e-8;
+    K = theta * K / sin（1e-6）;
 end
 
 x = [T(1:3,4); K];
-
+%%% One of the main potential problem in angle-axis represention
+%%% is its discontinuity as it constraints the angle in the range
+%%% of (0, pi), the x_com is to give the complementary representation
+%%% which keeps the angle continuous and exteeds pi.
 K = -[ R(3, 2) - R(2, 3);
       R(1, 3) - R(3, 1);
       R(2, 1) - R(1, 2) ];
