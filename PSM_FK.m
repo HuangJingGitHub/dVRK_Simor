@@ -1,4 +1,4 @@
-function [T, J] = PSM_FK(psm)
+function [T, P, J] = PSM_FK(psm)
 %%% Foreward kinematics of dVRK Patient Side Manipulator(PSM)
 
 T = eye(4);
