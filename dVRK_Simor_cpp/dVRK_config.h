@@ -15,7 +15,53 @@ const float l_tool = 0.4152F;
 const float l_Pitch2Yaw = 0.0091F;
 const float l_Yaw2CtrlPnt = 0.0102F;
 
-Matrix4f get_T_psm_mtm()
+class dVRK_init
+{
+public:
+	dVRK_init();
+	Matrix4f get_T_psm_mtm() const
+	{
+		return _T_psm_mtm;
+	}
+	DiagonalMatrix<float, 6> get_gain() const
+	{
+		return _lambda;
+	}
+	MatrixXf get_psm_q_initial() const
+	{
+		return _psm_q_initial;
+	}
+	MatrixXf get_mtm_q_initial() const
+	{
+		return _mtm_q_initial;
+	}
+private:
+	Matrix4f _T_psm_mtm;
+	DiagonalMatrix<float, 6> _lambda;
+	MatrixXf _mtm_q_initial;
+	MatrixXf _psm_q_initial;
+};
+
+dVRK_init::dVRK_init()
+{
+	Matrix4f T_psm_mtm;
+	DiagonalMatrix<float, 6> lambda;
+	MatrixXf mtm_q_initial(7, 1);    // *****
+	MatrixXf psm_q_initial(6, 1);
+	T_psm_mtm <<	-1.0F, 0.0F, 0.0F, -0.0001F,
+					0.0F, -1.0F, 0.0F, -0.3639F,
+					0.0F, 0.0F, 1.0F, -0.0359F,
+					0.0F, 0.0F, 0.0F, 1.0F;
+	lambda.diagonal() << 800.0F, 800.0F, 800.0F, 200.0F, 200.0F, 200.0F;
+	mtm_q_initial << 3.468e-4F, 0.0201F, 0.0143F, -0.7197F, 1.5691F, 0.0F, 2.4218F;
+	psm_q_initial << 0.0175F, -0.0349F, 0.1800F, 0.0F, -0.0524F, 0.0087F;
+
+	_T_psm_mtm = T_psm_mtm;
+	_lambda = lambda;
+	_mtm_q_initial = mtm_q_initial;
+	_psm_q_initial = psm_q_initial;
+}
+/*Matrix4f get_T_psm_mtm()
 {
 	Matrix4f T_psm_mtm;
 	T_psm_mtm << -1.0F, 0.0F, 0.0F, -0.0001F,
@@ -30,7 +76,7 @@ DiagonalMatrix<float, 6> get_gain()
 	DiagonalMatrix<float, 6> lambda;
 	lambda.diagonal() << 800.0F, 800.0F, 800.0F, 200.0F, 200.0F, 200.0F;
 	return lambda;
-}
+}*/
 
 MatrixXf dVRK_MTMinit()
 {
@@ -52,7 +98,7 @@ MatrixXf dVRK_PSMinit()
 	MatrixXf PSM_DH(7, 5);
 	PSM_DH.row(0) << 1, pi / 2, 0, 0, pi / 2;
 	PSM_DH.row(1) << 1, -pi / 2, 0, 0, -pi / 2;
-	PSM_DH.row(2) << 2, pi / 2, 0 - l_RCC, 0;
+	PSM_DH.row(2) << 2, pi / 2, 0, - l_RCC, 0;
 	PSM_DH.row(3) << 1, 0, 0, l_tool, 0;
 	PSM_DH.row(4) << 1, -pi / 2, 0, 0, -pi / 2;
 	PSM_DH.row(5) << 1, -pi / 2, l_Pitch2Yaw, 0, -pi / 2;
@@ -63,7 +109,7 @@ MatrixXf dVRK_PSMinit()
 
 DH MTM_Model(MatrixXf mtm_q)
 {
-	DH MTM(PSM_frame_num);
+	DH MTM(MTM_frame_num);
 	if (!(mtm_q.rows() == 7 && mtm_q.cols() == 1))
 	{
 		cerr << "Invalid MTM joint position input!\n";
@@ -110,7 +156,7 @@ MatrixXf MTM_FK(DH MTM)
 
 DH PSM_Model(MatrixXf psm_q)
 {
-	DH PSM(MTM_frame_num);
+	DH PSM(PSM_frame_num);
 	if (!(psm_q.rows() == 6 && psm_q.cols() == 1))     // Joint 7 of PSM is fixed as 0. psm_q only has 6 joint angles.
 	{
 		cerr << "Invalid PSM joint position input!\n";
@@ -162,9 +208,9 @@ Kinematics_info PSM_FK(DH PSM)
 	                                                  // since the complier doesn't know the dimension matches or not.
 	                                                  // thus, just use block on both sides.
 	Vector3f z, pd;
-	for (row = 0; row < frame_num; row++)
+	for (row = 0; row < frame_num - 1; row++)
 	{
-		j_type = int(PSM_DH(row, 0));
+		j_type = (int)(PSM_DH(row, 0));
 		if (j_type == 1)
 		{
 			z.block(0, 0, 3, 1) = Z.col(row);		 // When col() is on the right side, bolck and col work well.
@@ -198,6 +244,16 @@ public:
 		_psm_q_dsr = psm_q_dsr;
 		_tracking_err = tracking_err;
 	}
+
+	MatrixXf get_psm_q_dsr() const
+	{
+		return _psm_q_dsr;
+	}
+	
+	MatrixXf get_tracking_err() const
+	{
+		return _tracking_err;
+	}
 private:
 	MatrixXf _psm_q_dsr;
 	MatrixXf _tracking_err;
@@ -206,12 +262,15 @@ private:
 class teleOp 
 {
 public:
-	teleOp(MatrixXf mtm_q_initial, MatrixXf psm_q_initial);
+	//teleOp(MatrixXf mtm_q_initial, MatrixXf psm_q_initial);
+	teleOp();
 	control_info run(MatrixXf mtm_q);
 private:
+	const dVRK_init _dVRK_init = dVRK_init();
 	const float dt = 0.001F;
-	const Matrix4f T_psm_mtm = get_T_psm_mtm();
-	const MatrixXf lambda = get_gain();
+	const Matrix4f T_psm_mtm = _dVRK_init.get_T_psm_mtm();
+	const MatrixXf lambda = _dVRK_init.get_gain();
+	const MatrixXf psm_q_initial = _dVRK_init.get_psm_q_initial();
 	MatrixXf psm_q;
 	Matrix4f psm_x_cur;
 	Matrix4f psm_x_dsr_pre;
@@ -219,7 +278,7 @@ private:
 	Matrix4f mtm_x;
 };
 
-teleOp::teleOp(MatrixXf mtm_q_initial, MatrixXf psm_q_initial)
+/*teleOp::teleOp(MatrixXf mtm_q_initial, MatrixXf psm_q_initial)
 {
 	psm_q = psm_q_initial;
 	DH MTM(mtm_q_initial);
@@ -230,12 +289,25 @@ teleOp::teleOp(MatrixXf mtm_q_initial, MatrixXf psm_q_initial)
 	psm_x_cur = psm_kine_info.tip_get();
 	psm_x_dsr_cur = T_psm_mtm * mtm_x;
 	psm_x_dsr_pre = psm_x_cur;
+}*/
+
+teleOp::teleOp()
+{
+	psm_q = psm_q_initial;
+	DH MTM = MTM_Model(_dVRK_init.get_mtm_q_initial());
+	DH PSM = PSM_Model(psm_q_initial);
+	mtm_x = MTM_FK(MTM);
+
+	Kinematics_info psm_kine_info = PSM_FK(PSM);
+	psm_x_cur = psm_kine_info.tip_get();
+	psm_x_dsr_cur = T_psm_mtm * mtm_x;
+	psm_x_dsr_pre = psm_x_cur;
 }
 
 control_info teleOp::run(MatrixXf mtm_q)
 {
-	DH MTM = DH(mtm_q);
-	DH PSM = DH(psm_q);
+	DH MTM = MTM_Model(mtm_q);
+	DH PSM = PSM_Model(psm_q);
 	Kinematics_info psm_kine_info = PSM_FK(PSM);
 	psm_x_cur = psm_kine_info.tip_get();
 	MatrixXf J = psm_kine_info.J_get();

@@ -59,6 +59,7 @@ bool DH::DH_set(int row, int col, float val)
 bool DH::DH_set(MatrixXf DH_table)
 {
 	_DH = DH_table;
+	_frame_num = _DH.rows();
 	return true;
 }
 
@@ -100,8 +101,8 @@ public:
 	}
 	MatrixXf tip_get() const
 	{	return _T_tip;	}
-    void  tip_set(Matrix4f tip) 
-	{  _T_tip = tip;}
+    void  tip_set(Matrix4f& tip) 
+	{  _T_tip = tip;	}
 
 	MatrixXf origin_pos_get() const
 	{	return _origin_pos;	}
@@ -129,16 +130,16 @@ MatrixXf vel_cal(Matrix4f& T_cur, Matrix4f& T_pre, float dt)  // Pass fixed size
 	vel(4, 0) = T(0, 2) - T(2, 0);
 	vel(5, 0) = T(1, 0) - T(0, 1);
 
-	double epsilon = 1e-5,
+	/*double epsilon = 1e-5,
 		  theta = acos(0.5*(T.trace() - 1));
 	if (theta > epsilon && theta < pi - epsilon)
 		vel = vel * (theta / 2 / sin(theta));
 	else
-		vel = vel * (theta / 2 / sin(epsilon));
+		vel = vel * (theta / 2 / sin(epsilon));*/
 	
 	vel(0, 0) = T_cur(0, 3) - T_pre(0, 3);
-	vel(0, 1) = T_cur(1, 3) - T_pre(1, 3);
-	vel(0, 2) = T_cur(2, 3) - T_pre(2, 3);
+	vel(1, 0) = T_cur(1, 3) - T_pre(1, 3);
+	vel(2, 0) = T_cur(2, 3) - T_pre(2, 3);
 	vel = vel / dt;
 	return vel;
 }
@@ -153,16 +154,16 @@ MatrixXf xdif(Matrix4f& T_cur, Matrix4f& T_pre)
 	xerr(4, 0) = T(0, 2) - T(2, 0);
 	xerr(5, 0) = T(1, 0) - T(0, 1);
 
-	double epsilon = 1e-5,
+	/*double epsilon = 1e-5,
 		theta = acos(0.5*(T.trace() - 1));
 	if (theta > epsilon && theta < pi - epsilon)
 		xerr = xerr * (theta / 2 / sin(theta));
 	else
-		xerr = xerr * (theta / 2 / sin(epsilon));
+		xerr = xerr * (theta / 2 / sin(epsilon));*/
 
 	xerr(0, 0) = T_cur(0, 3) - T_pre(0, 3);
-	xerr(0, 1) = T_cur(1, 3) - T_pre(1, 3);
-	xerr(0, 2) = T_cur(2, 3) - T_pre(2, 3);
+	xerr(1, 0) = T_cur(1, 3) - T_pre(1, 3);
+	xerr(2, 0) = T_cur(2, 3) - T_pre(2, 3);
 	return xerr;
 }
 
