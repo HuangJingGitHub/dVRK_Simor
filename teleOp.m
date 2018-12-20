@@ -40,6 +40,7 @@ classdef teleOp < handle
             
             obj.counter = 1;
             obj.fig = init_fig(obj.psm_x_cur, obj.origin_pos);
+            % obj.fig = figure('Position', [50 50 500 800]) more compact, just need a figure handle, no need to initialize objects.
             %initialize your variables
 
             if (nargin > 3)
