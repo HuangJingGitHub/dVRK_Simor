@@ -1,4 +1,4 @@
-clear
+%%% To save mat file into formated text file for C++ code use.
 load( "dvrk_mtm_psm.mat");
 
 fileID = fopen('mtm_q.txt', 'wt');
@@ -12,5 +12,4 @@ for i = 1: 1 : col
         end
     end
 end
-%fprintf(fileID, '%6.4f\n', mtm_q);
 fclose(fileID);
