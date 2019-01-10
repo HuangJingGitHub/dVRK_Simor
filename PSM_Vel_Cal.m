@@ -18,7 +18,7 @@ epsilon = 1e-6;
 if theta > epsilon && theta < pi - epsilon          %%% To avoid singular scenarios.
     K = theta * K / (2*sin(theta));
 else
-    K = theta * K / 1e-5;
+    K = theta * K / (2*1e-6);
 end
 
 omega = K / t_sample;
