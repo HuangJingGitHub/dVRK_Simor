@@ -54,6 +54,13 @@ classdef suj1 < handle
                 tip_pos = tip_pos * Ti;
             end  
         end
+        
+        function update(self, q)
+            self.q_current = q;
+            self.tip_pos = self.forwardK();
+            self.tip_pos_world = self.suj2world * self.tip_pos;
+            self.tool_origin_pos_world = self.tip_pos_world * self.tool_origin2suj_tip;            
+        end
     end
 end
     
