@@ -15,7 +15,7 @@ public:
 	DH(MatrixXf input_DH)
 	{
 		if (input_DH.cols() != 5)
-			cerr << "Not valid DH table size inputed! NOTE: DH table need to have 5 cols.";
+			cerr << "Invalid DH table size! NOTE: DH table should have 5 columns.";
 		else
 		{
 			_frame_num = input_DH.rows();
