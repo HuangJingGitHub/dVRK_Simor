@@ -1,2 +1,2 @@
 # dVRK_Simor
-Forward and inverse kinematics simulator for dVRK 
+Forward and inverse kinematics simulator of dVRK 
